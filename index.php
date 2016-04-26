@@ -6,27 +6,14 @@ Author: Chris Smith
 Version: 0.1
 */
 
+/*** Database setup ***/
+
 global $modulr_db_version;
 $modulr_db_version = '1.0';
 
 function modulr_install() {
 	global $wpdb;
 	global $modulr_db_version;
-
-	/*$table_name = $wpdb->prefix . 'modulr';
-	
-	$charset_collate = $wpdb->get_charset_collate();
-
-	$sql = "CREATE TABLE $table_name (
-		id mediumint(9) NOT NULL AUTO_INCREMENT,
-		widget_id text NOT NULL,
-		row mediumint(9) DEFAULT '' NOT NULL,
-		col mediumint(9) DEFAULT '' NOT NULL,
-		sizex mediumint(9) DEFAULT '' NOT NULL,
-		sizey mediumint(9) DEFAULT '' NOT NULL,
-		last_updated datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
-		UNIQUE KEY id (id)
-	) $charset_collate;";*/
 
 	$table_name = $wpdb->prefix . 'modulr';
 	
@@ -50,6 +37,15 @@ function modulr_install() {
 	add_option( 'modulr_db_version', $modulr_db_version );
 }
 
+function enqueue_media_uploader()
+{
+    wp_enqueue_media();
+}
+
+add_action("admin_enqueue_scripts", "enqueue_media_uploader");
+
+/*** Database initial population ***/
+
 function modulr_install_data() {
 	global $wpdb;
 	
@@ -70,6 +66,7 @@ function modulr_install_data() {
 				'col' => $col_list[$key],
 				'sizex' => $x_list[$key],
 				'sizey' => $y_list[$key],
+				'link_id' => '0',
 				'last_updated' => current_time( 'mysql' ),
 			) 
 		);
@@ -86,82 +83,211 @@ function modulr_setup_menu(){
 	add_menu_page( 'Modulr', 'Modulr', 'manage_options', 'modulr', 'modulr_init' );
 }
 
-add_action('wp_ajax_action_name', 'my_ajax_processing_function');
-add_action('wp_ajax_nopriv_action_name', 'my_ajax_processing_function');
+/*** Ajax return functions ***/
+/* Set widget post function */
 
+add_action('wp_ajax_set_item', 'set_item_ajax_processing_function');
+add_action('wp_ajax_nopriv_set_item', 'set_item_ajax_processing_function');
 
-function my_ajax_processing_function() {
-	//print_r($_GET);
+function set_item_ajax_processing_function() {
 	$id = $_GET['id'];
-	//echo "id = ".$id;
-	$size = substr($_GET['size'], 0, -2);
+	$size = $_GET['size'];//substr($_GET['size'], 0, -2);
+	//echo "SIZE = ".$size;
 	$img = wp_get_attachment_image_src( get_post_thumbnail_id( $id ), $size );
 	$title = get_the_title($id);
-	//echo $title;
-	//$img = wp_get_attachment_image_src( get_post_thumbnail_id($id) );
-	//echo $img[0];
 	$id_numbers = $img[0].'%'.$title.'%';
 	echo $id_numbers;
 
 	die();
 }
 
-function modulr_init(){
-	$posts = get_posts();
-	echo "<h1>Modulr</h1>";
-	
-	$list = "<h3>Select a Post:</h3>
-	<ul id='post_list'>";
-	foreach($posts as $post) {
-		$list.="<li class='list_items' id='".$post->ID."'>".$post->post_title."</li>";
+/* Save widget state and items function */
+
+add_action('wp_ajax_save_all', 'save_all_ajax_processing_function');
+add_action('wp_ajax_nopriv_save_all', 'save_all_ajax_processing_function');
+
+function save_all_ajax_processing_function() {
+	$id_list = $_GET['id_list'];
+	$row_list = $_GET['row_list'];
+	$col_list = $_GET['col_list'];
+	$sizex_list = $_GET['sizex_list'];
+	$sizey_list = $_GET['sizey_list'];
+	$post_list = $_GET['post_list'];
+
+	global $wpdb;
+	$table_name = $wpdb->prefix . 'modulr';
+
+	for($v=0;$v<count($id_list);$v++) {
+		$data = array(
+		    'row' => $row_list[$v],
+		    'col' => $col_list[$v],
+		    'sizex' => $sizex_list[$v],
+		    'sizey' => $sizey_list[$v],
+		    'link_id' => $post_list[$v],
+		);
+		$where = array( 'widget_id' => $id_list[$v] );
+		$wpdb->update( $table_name, $data, $where);//, $format, $where_format );
 	}
-	$list.="</ul>
-	<h5 class='cancel'>Cancel</h5>";
+	echo "great success";
 
-	echo '<section class="demo">
-			<div class="gridster">
-				<ul>
-					<li class="box_list" id="1_1_3_1" data-row="1" data-col="1" data-sizex="3" data-sizey="1"><h1>A 3x1</h1><button id="1_1_3_1_button">Set</button><div class="list" style="display:none;"">'; echo $list; echo '</div></li>
-
-					<li class="box_list" id="1_2_1_1" data-row="2" data-col="1" data-sizex="1" data-sizey="1"><h1>B 1x1</h1><button id="1_2_1_1_button">Set</button><div class="list" style="display:none;"">'; echo $list; echo '</div></li>
-					<li class="box_list" id="2_2_1_1" data-row="2" data-col="2" data-sizex="1" data-sizey="1"><h1>C 1x1</h1><button id="2_2_1_1_button">Set</button><div class="list" style="display:none;"">'; echo $list; echo '</div></li>
-					<li class="box_list" id="3_2_1_2" data-row="2" data-col="3" data-sizex="1" data-sizey="2"><h1>D 1x2</h1><button id="3_2_1_2_button">Set</button><div class="list" style="display:none;"">'; echo $list; echo '</div></li>
-					<li class="box_list" id="1_3_2_1" data-row="3" data-col="1" data-sizex="2" data-sizey="1"><h1>E 2x1</h1><button id="1_3_2_1_button">Set</button><div class="list" style="display:none;"">'; echo $list; echo '</div></li>
-
-					<li class="box_list" id="1_4_1_1" data-row="4" data-col="1" data-sizex="1" data-sizey="1"><h1>F 1x1</h1><button id="1_4_1_1_button">Set</button><div class="list" style="display:none;"">'; echo $list; echo '</div></li>
-					<li class="box_list" id="2_4_2_1" data-row="4" data-col="2" data-sizex="2" data-sizey="1"><h1>G 2x1</h1><button id="2_4_2_1_button">Set</button><div class="list" style="display:none;"">'; echo $list; echo '</div></li>
-					
-					<li class="box_list" id="1_5_3_1" data-row="5" data-col="1" data-sizex="3" data-sizey="1"><h1>H 3x1</h1><button id="1_5_3_1_button">Set</button><div class="list" style="display:none;"">'; echo $list; echo '</div></li>
-
-					<li class="box_list" id="1_6_2_1" data-row="6" data-col="1" data-sizex="2" data-sizey="1"><h1>I 2x1</h1><button id="1_6_2_1_button">Set</button><div class="list" style="display:none;"">'; echo $list; echo '</div></li>
-					<li class="box_list" id="3_6_1_1" data-row="6" data-col="3" data-sizex="1" data-sizey="1"><h1>J 1x1</h1><button id="3_6_1_1_button">Set</button><div class="list" style="display:none;"">'; echo $list; echo '</div></li>
-
-					<li class="box_list" id="1_7_1_1" data-row="1" data-col="2" data-sizex="1" data-sizey="1"><h1>K 1x1</h1><button id="1_7_1_1_button">Set</button><div class="list" style="display:none;"">'; echo $list; echo '</div></li>
-					<li class="box_list" id="2_7_2_1" data-row="1" data-col="1" data-sizex="2" data-sizey="1"><h1>L 2x1</h1><button id="2_7_2_1_button">Set</button><div class="list" style="display:none;"">'; echo $list; echo '</div></li>
-				</ul>
-			</div>
-		</section><div id="save">Save</div>';
+	die();
 }
 
+add_action('wp_ajax_upload_media', 'upload_media_ajax_processing_function');
+add_action('wp_ajax_nopriv_upload_media', 'upload_media_ajax_processing_function');
+
+function upload_media_ajax_processing_function() {
+	$image_id = $_GET['image_id'];
+	$image_url = $_GET['image_url'];
+
+	echo $image_url;
+
+	die();
+}
+
+/*** Admin page setup ***/
+
+function modulr_init(){
+	global $wpdb;
+	$table_name = $wpdb->prefix . 'modulr';
+	$res = $wpdb->get_results("SELECT * FROM ".$table_name);
+
+	$args = array('posts_per_page' => -1);
+	$posts = get_posts($args);
+	$type = 'products';
+	$args=array(
+		'post_type' => 'project',
+		'posts_per_page' => -1
+	);
+	$projects = new WP_Query($args);
+	$projects = $projects->get_posts();
+
+	echo "<h1>Modulr</h1>";
+
+	/*** Projects ***/
+	$projects_list="<h3>Select a Project:</h3>
+		<ul id='post_list'>";
+	foreach($projects as $project) {
+		$projects_list.="<li class='list_items' id='".$project->ID."'>".$project->post_title."</li>";
+	}
+	$projects_list.="</ul>";
+
+	/*** Posts ***/
+	$posts_list="<h3>Select a Post:</h3>
+		<ul id='post_list'>";
+	foreach($posts as $post) {
+		$posts_list.="<li class='list_items' id='".$post->ID."'>".$post->post_title."</li>";
+	}
+	$posts_list.="</ul>";
+
+	$media_list="<button id='upload_media'>Upload Media</button>";
+
+	echo '<div id="saved">Saved</div><section class="demo"><button id="save">Save</button>
+			<div class="gridster">
+				<ul id="box_ul">';
+
+	$title_list = array("Large Horizontal 1", "Small 1", "Small 2", "Medium Vertical 1", "Medium Horizontal 1", "Small 3", "Medium Horizontal 2", "Large Horizontal 2", "Medium Horizontal 3", "Small 4", "Small 5", "Medium Horizontal 4");
+
+	$post_id = '0';
+
+	foreach ($res as $key=>$rs) {
+		if($rs->link_id!='0') {
+			$post_id = $rs->link_id;
+			$size = $rs->sizex."_".$rs->sizey;
+			$img = wp_get_attachment_image_src( get_post_thumbnail_id( $post_id ), $size );
+			$css = "style='background-image:url(".$img[0].")';";
+			$title = get_the_title($post_id);
+		} else {
+			$post_id = '0';
+			$css = '';
+			$title = $title_list[$key];
+		}
+
+		/*$class_fix = '';
+		if($rs->sizey!=1)
+			$class_fix = '_v';*/
+
+		echo '<li post_id="'.$post_id.'" class="box_list" id="'.$rs->widget_id.'" data-row="'.$rs->row.'" data-col="'.$rs->col.'" data-sizex="'.$rs->sizex.'" data-sizey="'.$rs->sizey.'"" '.$css.'>
+				<div class="rel_container_'.$rs->sizex.'_'.$rs->sizey.'">
+					<button id="'.$rs->widget_id.'_button">Set</button>
+					<div class="fixed_container">
+						<h1>'.$title.'</h1>
+					</div>
+					<div class="list" style="display:none;"">
+						<div id="tabs_'.$key.'" class="c-tabs no-js">
+							<div class="c-tabs-nav">
+								<a href="#" class="c-tabs-nav__link_'.$key.' c-tabs-nav__link is-active">Projects</a>
+								<a href="#" class="c-tabs-nav__link_'.$key.' c-tabs-nav__link">Posts</a>
+								<a href="#" class="c-tabs-nav__link_'.$key.' c-tabs-nav__link">Media</a>
+							</div>
+							<div class="c-tab_'.$key.' c-tab is-active">
+								<div class="c-tab__content">'
+									.$projects_list.
+								'</div>
+								<h5 class="cancel">Cancel</h5>
+							</div>
+							<div class="c-tab_'.$key.' c-tab">
+								<div class="c-tab__content">'
+									.$posts_list.
+								'</div>
+								<h5 class="cancel">Cancel</h5>
+							</div>
+							<div class="c-tab_'.$key.' c-tab">
+								<div class="c-tab__content">
+									<h3>Upload Media:</h3>'
+									.$media_list.
+								'</div>
+								<h5 class="cancel">Cancel</h5>
+							</div>
+						</div>
+					</div>
+				</div>
+			</li>';
+			echo "<script>";
+			for($i=0;$i<count($res);$i++) {
+		        echo "var myTabs_".$i." = tabs({
+		            el: '#tabs_".$i."',
+		            tabNavigationLinks: '.c-tabs-nav__link_".$i."',
+		            tabContentContainers: '.c-tab_".$i."'
+		        });
+		        myTabs_".$i.".init();";
+		    }
+			echo "</script>";
+	}
+		echo '</ul>
+			</div>
+		</section>';
+}
+
+/*** Script enqueueing ***/
+
 function gr_enqueue($hook) {
-	/*if('edit.php' != $hook) {
-		return;
-	}*/
-	//wp_enqueue_style( 'gridster_css', plugin_dir_url( __FILE__ ) . 'main.css');
-	//wp_enqueue_script('gridster', get_template_directory_url().'/gridster.js');
-	//wp_enqueue_script( 'gridster_min', plugin_dir_url( __FILE__ ) . 'gridster/dist/jquery.gridster.min.js');
-	//wp_enqueue_script( 'gridster_min', plugin_dir_url( __FILE__ ) . '/libs/qunit/junit.js');
 	wp_enqueue_style( 'gridster_js_css', plugin_dir_url( __FILE__ ) . 'assets/css/jquery.gridster.css');
 	wp_enqueue_style( 'gridster_css', plugin_dir_url( __FILE__ ) . 'assets/css/styles.css');
 	wp_enqueue_script( 'jquery_js', plugin_dir_url( __FILE__ ) . 'assets/jquery.js');
 	wp_enqueue_script( 'gridster_js', plugin_dir_url( __FILE__ ) . 'assets/jquery.gridster.js');
-	//wp_enqueue_script( 'gridster_test', plugin_dir_url( __FILE__ ) . 'gridster/jquery.gridster_test.js');
-
-  /*<script src="../src/jquery.gridster.js"></script>
-  <script src="jquery.gridster_test.js"></script>*/
 	wp_enqueue_script( 'gridster', plugin_dir_url( __FILE__ ) . 'gridster.js');
+	wp_enqueue_script(' tabs', plugin_dir_url(__FILE__) . 'tabs.js');
 }
 
 add_action('admin_enqueue_scripts', 'gr_enqueue')
+
+
+
+/*
+Todo:
+	Add image size creation to plugin (from functions)
+	Creat shortcode
+	Add in media option
+	UI overhaul
+	DONE: Vertical box Set box sizing sizing
+
+Further On:
+	Box resizer
+	Box adder
+	Box removal
+	Template loading
+	Add to any page
+*/
 
 ?>
