@@ -225,6 +225,14 @@ button {
   padding: 1.5rem;
 }
 
+.gridster .gs_w {
+  position: relative;
+  background: none;
+  box-shadow: none;
+  -webkit-box-shadow: none;
+}
+
+
 /* -----------------------------------------------------------------------------
   TABS COMPONENT
   

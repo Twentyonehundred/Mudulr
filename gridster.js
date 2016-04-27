@@ -21,13 +21,13 @@ function open_media_uploader_image()
     media_uploader.on("insert", function(){
         var json = media_uploader.state().get("selection").first().toJSON();
         var main_id = jQuery('#upload_media').parent().parent().parent().parent().parent().parent().attr('id');
-        alert(main_id);
+        //alert(main_id);
 
         var image_url = json.url;
         var image_caption = json.caption;
         var image_title = json.title;
         var image_id = json.id;
-        alert(image_id);
+        //alert(image_id);
         var postData = {
             action : 'upload_media',
             image_id : image_id,
@@ -38,7 +38,7 @@ function open_media_uploader_image()
             url: "/wp-admin/admin-ajax.php",
             data: postData,
             success: function(response) {
-                alert(response);
+                //alert(response);
                 jQuery('#'+main_id).css('background-image', 'url('+response+')');
                 jQuery('#'+main_id+' > div > div > h1').show();
                 jQuery('#'+main_id+' > div > .list').hide();
@@ -59,7 +59,7 @@ jQuery(document).ready(function() {
     
     jQuery('#save').click(function() {
 
-        var gridster = $('.gridster ul').gridster().data('gridster');
+        var gridster = jQuery('.gridster ul').gridster().data('gridster');
         var widge = gridster.$widgets;
         var id_list = Array();
         var row_list = Array();
@@ -94,7 +94,7 @@ jQuery(document).ready(function() {
           url: "/wp-admin/admin-ajax.php",
           data: postData,
           success: function(response) {
-            $("#saved").show().delay(2000).fadeOut();
+            jQuery("#saved").show().delay(2000).fadeOut();
           }
         });
     })

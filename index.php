@@ -270,17 +270,53 @@ function gr_enqueue($hook) {
 	wp_enqueue_script(' tabs', plugin_dir_url(__FILE__) . 'tabs.js');
 }
 
-add_action('admin_enqueue_scripts', 'gr_enqueue')
+add_action('admin_enqueue_scripts', 'gr_enqueue');
 
+function register_plugin_styles() {
+	wp_register_style('modulr_frontend', plugin_dir_url( __FILE__ ) .'assets/css/modulr_front.css');
+	wp_enqueue_style('modulr_frontend');
+}
+
+add_action( 'wp_enqueue_scripts', 'register_plugin_styles' );
+
+//add_action( 'wp_enqueue_scripts', array( $this, 'register_plugin_styles' ) );
+
+/*** Shortcode generation ***/
+
+function modulr_output() {
+	global $wpdb;
+	$table_name = $wpdb->prefix . 'modulr';
+	$res = $wpdb->get_results("SELECT * FROM ".$table_name);
+
+	echo "<div style='width:100%;'>";
+	foreach ($res as $key=>$rs) {
+		$post_id = $rs->link_id;
+		$size = $rs->sizex."_".$rs->sizey;
+		$img = wp_get_attachment_image_src( get_post_thumbnail_id( $post_id ), $size );
+		$css = "background-image:url(".$img[0].");";
+		$title = get_the_title($post_id);
+
+		$extra = 0;
+		if($rs->sizex>1)
+			$extra = ($rs->sizex-1)*20;
+
+		echo "<a href=".get_the_permalink($post_id)."><div class='modulr_blocks' style='".$css."float:left;height:".($rs->sizey*360)."px; width:".(($rs->sizex*360)+$extra)."px;'>".$title."</div></a>";
+	}
+	echo "</div>";
+}
+
+add_shortcode('modulr', 'modulr_output');
 
 
 /*
 Todo:
 	Add image size creation to plugin (from functions)
-	Creat shortcode
-	Add in media option
+	Add in more media option
+	Add in text option
 	UI overhaul
-	DONE: Vertical box Set box sizing sizing
+	Load content, disable, enable regens starting content
+	Media page save
+	Save li bug
 
 Further On:
 	Box resizer
