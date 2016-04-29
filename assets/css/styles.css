@@ -1,4 +1,4 @@
-body {
+.modulr_container {
     background-color: #EEEEEE;
     font-family: 'Helvetica Neue', Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -6,11 +6,11 @@ body {
     color: #666666;
 }
 
-ul, ol {
+.modulr_container ul, ol {
     list-style: none;
 }
 
-h1 {
+.modulr_container h1 {
   margin: 0px;
   margin-top: 0px;
   /*text-align: center;*/
@@ -26,10 +26,17 @@ h1 {
   bottom: 0;*/
 }
 
-h3 {
+.modulr_container h3 {
   font-size: 25px;
   font-weight: 600;
   color: rgb(23, 98, 161);
+}
+
+.modulr_container textarea {
+  display: inherit;
+  width: 100%;
+  height: 110px;
+  margin-top: 20px;
 }
 
 /* Gridster styles */
@@ -63,7 +70,7 @@ h3 {
     box-shadow: 0 0 5px rgba(0,0,0,0.3);
 }
 
-.list {
+.modulr_container .list {
   padding: 20px;
   font-size: 1.5em;
   height: 100%;
@@ -77,10 +84,10 @@ h3 {
   height: 740px;
 }
 
-button {
-  width: 30%;
-  height: 40px;
-  font-size: 1.5em;
+.modulr_container button {
+  min-width: 20%;
+  height: 30px;
+  font-size: 1.2em;
   font-weight: bold;
   background: rgba(0,0,0,0.4);
   border: none;
@@ -92,6 +99,32 @@ button {
   -webkit-border-radius: 0 0 7px 0;
 }
 
+.inner_button {
+  height: 40px!important;
+  min-width: 30%!important;
+}
+
+.hidden_field {
+  display: none;
+}
+
+.custom_link {
+  float: right;
+  max-width: 50%;
+  background-color: rgba(255,0,0,0.3);
+  color: #ffffff;
+  font-size: 1.5em;
+  padding: 5px 10px;
+}
+
+.custom_link:empty {
+  display: none;
+}
+
+button.apply, button.link {
+  margin-left: 10px;
+}
+
 .list {
   /*background-color: rgba(255,255,255,0.7);*/
 }
@@ -101,6 +134,7 @@ button {
   -moz-background-size: cover;
   -o-background-size: cover;
   background-size: cover;
+  position: absolute;
 }
 
 .list ul li:hover {
@@ -113,7 +147,7 @@ button {
 }
 
 #save {
-  width: initial;
+  min-width: 60px;
   padding: 20px 40px 50px 40px;
   font-size: 2.4em;
   margin-left: 63px;
@@ -183,6 +217,7 @@ button {
 
 #post_list li {
   cursor: pointer;
+  position: relative;
 }
 
 .cancel {

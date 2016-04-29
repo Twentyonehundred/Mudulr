@@ -26,7 +26,9 @@ function modulr_install() {
 		col varchar(12) DEFAULT '' NOT NULL,
 		sizex varchar(12) DEFAULT '' NOT NULL,
 		sizey varchar(12) DEFAULT '' NOT NULL,
-		link_id mediumint(9),
+		link_id varchar(12),
+		free_text varchar(255) NULL,
+		free_link varchar(255) NULL,
 		last_updated datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
 		UNIQUE KEY id (id)
 	) $charset_collate;";
@@ -91,8 +93,7 @@ add_action('wp_ajax_nopriv_set_item', 'set_item_ajax_processing_function');
 
 function set_item_ajax_processing_function() {
 	$id = $_GET['id'];
-	$size = $_GET['size'];//substr($_GET['size'], 0, -2);
-	//echo "SIZE = ".$size;
+	$size = $_GET['size'];
 	$img = wp_get_attachment_image_src( get_post_thumbnail_id( $id ), $size );
 	$title = get_the_title($id);
 	$id_numbers = $img[0].'%'.$title.'%';
@@ -113,6 +114,8 @@ function save_all_ajax_processing_function() {
 	$sizex_list = $_GET['sizex_list'];
 	$sizey_list = $_GET['sizey_list'];
 	$post_list = $_GET['post_list'];
+	$title_list = $_GET['title_list'];
+	$link_list = $_GET['link_list'];
 
 	global $wpdb;
 	$table_name = $wpdb->prefix . 'modulr';
@@ -124,12 +127,12 @@ function save_all_ajax_processing_function() {
 		    'sizex' => $sizex_list[$v],
 		    'sizey' => $sizey_list[$v],
 		    'link_id' => $post_list[$v],
+		    'free_text' => $title_list[$v],
+		    'free_link' => substr($link_list[$v], 6),
 		);
 		$where = array( 'widget_id' => $id_list[$v] );
-		$wpdb->update( $table_name, $data, $where);//, $format, $where_format );
+		$wpdb->update( $table_name, $data, $where);
 	}
-	echo "great success";
-
 	die();
 }
 
@@ -139,8 +142,10 @@ add_action('wp_ajax_nopriv_upload_media', 'upload_media_ajax_processing_function
 function upload_media_ajax_processing_function() {
 	$image_id = $_GET['image_id'];
 	$image_url = $_GET['image_url'];
+	$size = $_GET['size'];
 
-	echo $image_url;
+	$img = wp_get_attachment_image_src($image_id, $size);
+	echo $img[0];
 
 	die();
 }
@@ -149,6 +154,12 @@ function upload_media_ajax_processing_function() {
 
 function modulr_init(){
 	global $wpdb;
+
+	add_image_size('1_1', 360, 360, true);
+	add_image_size('2_1', 740, 360, true);
+	add_image_size('1_2', 360, 740, true);
+	add_image_size('3_1', 1120, 360, true);
+
 	$table_name = $wpdb->prefix . 'modulr';
 	$res = $wpdb->get_results("SELECT * FROM ".$table_name);
 
@@ -162,7 +173,7 @@ function modulr_init(){
 	$projects = new WP_Query($args);
 	$projects = $projects->get_posts();
 
-	echo "<h1>Modulr</h1>";
+	echo "<h1>Modulr</h1><div class='modulr_container'>";
 
 	/*** Projects ***/
 	$projects_list="<h3>Select a Project:</h3>
@@ -180,7 +191,7 @@ function modulr_init(){
 	}
 	$posts_list.="</ul>";
 
-	$media_list="<button id='upload_media'>Upload Media</button>";
+	$media_list="<h3>Upload Media:</h3>";
 
 	echo '<div id="saved">Saved</div><section class="demo"><button id="save">Save</button>
 			<div class="gridster">
@@ -191,25 +202,39 @@ function modulr_init(){
 	$post_id = '0';
 
 	foreach ($res as $key=>$rs) {
+		$link = '';
 		if($rs->link_id!='0') {
 			$post_id = $rs->link_id;
+			$sub = $post_id;
+			$img = '';
 			$size = $rs->sizex."_".$rs->sizey;
-			$img = wp_get_attachment_image_src( get_post_thumbnail_id( $post_id ), $size );
-			$css = "style='background-image:url(".$img[0].")';";
-			$title = get_the_title($post_id);
+			if(strlen($post_id)>4) {
+				if(substr($post_id, 0, 4)=='6666') {
+					$sub = substr($post_id, 4);
+					$img = wp_get_attachment_image_src($sub, $size);
+					$title = $rs->free_text;
+					if($rs->free_link)
+						$link = "Link: ".$rs->free_link;
+				}
+			}
+
+			if($img=='') {
+				$img = wp_get_attachment_image_src( get_post_thumbnail_id( $sub ), $size );
+				$title = get_the_title($post_id);
+			}
+
+			$css = "style='background-image:url(".$img[0].");'";
+			
 		} else {
 			$post_id = '0';
-			$css = '';
+			$css = "style='background:rgb(23, 98, 161);'";
 			$title = $title_list[$key];
 		}
 
-		/*$class_fix = '';
-		if($rs->sizey!=1)
-			$class_fix = '_v';*/
-
 		echo '<li post_id="'.$post_id.'" class="box_list" id="'.$rs->widget_id.'" data-row="'.$rs->row.'" data-col="'.$rs->col.'" data-sizex="'.$rs->sizex.'" data-sizey="'.$rs->sizey.'"" '.$css.'>
 				<div class="rel_container_'.$rs->sizex.'_'.$rs->sizey.'">
-					<button id="'.$rs->widget_id.'_button">Set</button>
+					<button class="inner_button" id="'.$rs->widget_id.'_button">Set</button>
+					<div class="custom_link" id="custom_link_'.$key.'">'.$link.'</div>
 					<div class="fixed_container">
 						<h1>'.$title.'</h1>
 					</div>
@@ -233,17 +258,18 @@ function modulr_init(){
 								<h5 class="cancel">Cancel</h5>
 							</div>
 							<div class="c-tab_'.$key.' c-tab">
-								<div class="c-tab__content">
-									<h3>Upload Media:</h3>'
+								<div class="c-tab__content">'
 									.$media_list.
-								'</div>
+									'<button id="upload_media_'.$key.'" class="upload_media">Upload Media</button>
+								</div>
 								<h5 class="cancel">Cancel</h5>
 							</div>
 						</div>
 					</div>
 				</div>
 			</li>';
-			echo "<script>";
+	}
+	echo "<script>";
 			for($i=0;$i<count($res);$i++) {
 		        echo "var myTabs_".$i." = tabs({
 		            el: '#tabs_".$i."',
@@ -253,10 +279,9 @@ function modulr_init(){
 		        myTabs_".$i.".init();";
 		    }
 			echo "</script>";
-	}
 		echo '</ul>
 			</div>
-		</section>';
+		</section></div>';
 }
 
 /*** Script enqueueing ***/
@@ -264,7 +289,6 @@ function modulr_init(){
 function gr_enqueue($hook) {
 	wp_enqueue_style( 'gridster_js_css', plugin_dir_url( __FILE__ ) . 'assets/css/jquery.gridster.css');
 	wp_enqueue_style( 'gridster_css', plugin_dir_url( __FILE__ ) . 'assets/css/styles.css');
-	wp_enqueue_script( 'jquery_js', plugin_dir_url( __FILE__ ) . 'assets/jquery.js');
 	wp_enqueue_script( 'gridster_js', plugin_dir_url( __FILE__ ) . 'assets/jquery.gridster.js');
 	wp_enqueue_script( 'gridster', plugin_dir_url( __FILE__ ) . 'gridster.js');
 	wp_enqueue_script(' tabs', plugin_dir_url(__FILE__) . 'tabs.js');
@@ -279,7 +303,6 @@ function register_plugin_styles() {
 
 add_action( 'wp_enqueue_scripts', 'register_plugin_styles' );
 
-//add_action( 'wp_enqueue_scripts', array( $this, 'register_plugin_styles' ) );
 
 /*** Shortcode generation ***/
 
@@ -310,7 +333,6 @@ add_shortcode('modulr', 'modulr_output');
 
 /*
 Todo:
-	Add image size creation to plugin (from functions)
 	Add in more media option
 	Add in text option
 	UI overhaul
